@@ -2,6 +2,8 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:crypto/crypto.dart';
 
+final processedDeliveries = <String>{};
+
 Future<void> handler(HttpRequest req) async {
   final signature = req.headers.value('x-hub-signature-256');
   final secret = Platform.environment['GITHUB_WEBHOOK_SECRET'];
@@ -37,15 +39,20 @@ Future<void> handler(HttpRequest req) async {
   await req.response.close();
 }
 
-final processedDeliveries = <String>{};
 
 Future<void> handleEvent(
   String? event,
   Map<String, dynamic> payload,
   String? deliveryId,
 ) async {
+
+  // 🔁 Idempotency check — ADD THIS AT THE VERY TOP
   if (deliveryId != null && processedDeliveries.contains(deliveryId)) {
-    print('Duplicate delivery ignored: $deliveryId');
+    print(jsonEncode({
+      'event': event,
+      'delivery': deliveryId,
+      'status': 'duplicate_ignored'
+    }));
     return;
   }
 
@@ -53,6 +60,7 @@ Future<void> handleEvent(
     processedDeliveries.add(deliveryId);
   }
 
+  // 🔄 Normal event handling
   switch (event) {
     case 'push':
       print('Push to ${payload['repository']['full_name']}');
@@ -63,8 +71,11 @@ Future<void> handleEvent(
       print('PR ${payload['number']} $action');
       break;
 
+    case 'ping':
+      print('Webhook verified');
+      break;
+
     default:
       print('Unhandled event: $event');
   }
 }
-
