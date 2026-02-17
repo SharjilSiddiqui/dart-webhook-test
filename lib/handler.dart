@@ -112,4 +112,4 @@ Future<void> handleEvent(
     default:
       break;
   }
-}
+} // End of handler.dart
